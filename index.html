@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style type="text/css">
+        #form {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            border: 1px solid black;
+            width: 300px;
+            gap: 10px;
+            padding: 20px;
+            margin-bottom: 40px;
+        }
+        #table {
+            border-collapse: collapse;
+            width: 500px;
+        }
+        th, td {
+            border: 1px solid black; 
+            padding: 10px; 
+            margin: 10px;
+            font-family: monospace;
+        }
+        .month :first-child {
+            vertical-align: top;
+            text-align: center;
+        }
+        .categoryInside {
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <form id="form" action="" method="post">
+        <label>
+            Choose date: <input name="date" type="date">
+        </label>
+        <label>
+            Choose category: 
+            <select name="category">
+                <option value="food">food</option>
+                <option value="fuel">fuel</option>
+            </select>
+        </label>
+        <label>
+            Enter amount: <input name="amount" type="number">
+        </label>
+        <button type="button" class="btnCreateNew">Create new expense</button>
+    </form>
+    <table id="table">
+        <thead>
+            <tr>
+                <th>
+                    <p>month</p>
+                    <p><input type="text" id="handlerFilterMonth" placeholder="enter date: yyyy-mm"></p>
+                    <select name="sortMonth" id="handlerFilterMonthAZ" >
+                        <option value="up">A-Z</option>
+                        <option value="down">Z-A</option>
+                    </select>
+                </th>
+                <th>
+                    <p>category</p> 
+                    <p>day</p>
+                    <select name="sortMonth" id="handlerFilterByCategory" >
+                        <option value="-" >----</option>
+                        <option value="food">food</option>
+                        <option value="fuel">fuel</option>
+                    </select>
+                </th>
+                <th>
+                    <p>expenses</p>
+                    <input type="text" id="handlerFilterByExpense" placeholder="enter rage: 10-100">
+                </th>
+            </tr>
+        </thead>
+        <tbody class="tbody">
+        </tbody>
+    </table>
+    <script>
+        const expenses = [
+            {"date": "2023-03-01", "category": "food", "amount": 55 },
+            {"date": "2023-03-31", "category": "food", "amount": 6 },
+            {"date": "2023-03-31", "category": "fuel", "amount": 210.2 },
+            {"date": "2023-03-01", "category": "food", "amount": 23 },
+            {"date": "2023-04-02", "category": "food", "amount": 9 },
+        ];
+
+        const btnCreateNewExpense = document.querySelector('.btnCreateNew');
+        const inputFilterByMonth = document.querySelector('#handlerFilterMonth');
+        const optionFilterByMonthAZ = document.querySelector('#handlerFilterMonthAZ');
+        const btnFilterByCategory = document.querySelector('#handlerFilterByCategory');
+        const btnFilterByExpense = document.querySelector('#handlerFilterByExpense');
+
+        btnCreateNewExpense.addEventListener('click', createNewExpense);
+        inputFilterByMonth.addEventListener('keydown', handlerFilterByMonth);
+        optionFilterByMonthAZ.addEventListener('change', handlerFilterByMonthAZ);
+        btnFilterByCategory.addEventListener('change', handlerFilterByCategory);
+        btnFilterByExpense.addEventListener('keydown', handlerFilterByExpense);
+
+        function handlerFilterByMonth(e) {
+            if (e.key === 'Enter') {
+                const [year, month] = e.target.value.split("-");
+                if (/^\d{4}$/.test(parseInt(year)) && (/^\d{1,2}$/.test(parseInt(month)))) {
+                    const padStr = month.padStart(2, "0");
+                    const firstTwoNumsOfMonth = padStr.slice(0, 2);
+                    const searchingMonth = `${year}-${firstTwoNumsOfMonth}`;
+                    if (newFormattedExpenses[searchingMonth]) {
+                        const parrentElem = document.querySelector('.tbody'); 
+                        parrentElem.textContent = '';
+                        const filteredObj = {
+                            [searchingMonth] : newFormattedExpenses[searchingMonth]
+                        }
+                        renderTable(filteredObj)
+                    }              
+                    inputFilterByMonth.value = '';
+                }
+            }
+        }
+
+        function handlerFilterByMonthAZ(e) {
+            const table = document.querySelector('.tbody'); 
+            table.textContent = '';
+            let sortedDates;
+            const selectOption = e.target.value
+            if (selectOption === 'up') {
+                sortedDates = Object.keys(newFormattedExpenses).sort((a, b) => {
+                return new Date(a) - new Date(b);
+                });
+            } else if (selectOption === 'down') {
+                sortedDates = Object.keys(newFormattedExpenses).sort((a, b) => {
+                return new Date(b) - new Date(a);
+                });
+            }
+            const groupedExpenses = {};
+            sortedDates.forEach(date => {
+            const expensesForDate = newFormattedExpenses[date];
+            Object.keys(expensesForDate).forEach(day => {
+                const expensesForDay = expensesForDate[day];
+                Object.keys(expensesForDay).forEach(category => {
+                    const amounts = expensesForDay[category];
+                    const [year, month] = date.split('-');
+                    const key = `${year}-${month}`;
+                    if (!groupedExpenses[key]) {
+                        groupedExpenses[key] = {};
+                    }
+                    if (!groupedExpenses[key][day]) {
+                        groupedExpenses[key][day] = {};
+                    }
+                    groupedExpenses[key][day][category] = amounts;
+                });
+            })});
+            renderTable(groupedExpenses)
+        }
+
+        function handlerFilterByCategory(e) {
+            const category = e.target.value;
+            let deleteCategory;
+            if (category === 'food') {
+                deleteCategory = 'fuel';
+            } else if (category === 'fuel') {
+                deleteCategory = 'food';
+            } else {
+                return;
+            }
+            const filteredExpenses = {};
+            for (const year in newFormattedExpenses) {
+                filteredExpenses[year] = {};
+                for (const month in newFormattedExpenses[year]) {
+                    if (newFormattedExpenses[year][month].hasOwnProperty(category) && newFormattedExpenses[year][month][category].length > 0) {
+                        filteredExpenses[year][month] = { ...newFormattedExpenses[year][month] };
+                        delete filteredExpenses[year][month][deleteCategory];
+                    }
+                }
+                if (Object.keys(filteredExpenses[year]).length === 0) {
+                    delete filteredExpenses[year];
+                }
+            }
+            renderTable(filteredExpenses);
+        }
+
+        function handlerFilterByExpense(e) {
+            if (e.key === 'Enter') {
+                const [min, max] = e.target.value.split("-");
+                if (parseFloat(min) < parseFloat(max))  {
+                    const minAmount = parseFloat(min);
+                    const maxAmount = parseFloat(max);
+                    const filteredExpenses = filterByAmount(newFormattedExpenses, minAmount, maxAmount);
+                    if (Object.keys(filteredExpenses).length > 0) {
+                        renderTable(filteredExpenses)
+                    }
+                }
+                btnFilterByExpense.value = "";
+            }
+        }
+
+        function filterByAmount(expenses, minAmount, maxAmount) {
+            const filteredExpenses = {};
+            for (const year in expenses) {
+                filteredExpenses[year] = {};
+                for (const month in expenses[year]) {
+                    filteredExpenses[year][month] = {};
+                    for (const day in expenses[year][month]) {
+                        const food = expenses[year][month].food || [];
+                        const fuel = expenses[year][month].fuel || [];
+                        const foodFiltered = food.filter(amount => amount >= minAmount && amount <= maxAmount);
+                        const fuelFiltered = fuel.filter(amount => amount >= minAmount && amount <= maxAmount);
+                        if (foodFiltered.length > 0 || fuelFiltered.length > 0) {
+                            if (foodFiltered.length > 0) {
+                                filteredExpenses[year][month].food = foodFiltered;
+                            }
+                            if (fuelFiltered.length > 0) {
+                                filteredExpenses[year][month].fuel = fuelFiltered;
+                            }
+                        }
+                    }
+                    if (Object.keys(filteredExpenses[year][month]).length === 0) {
+                        delete filteredExpenses[year][month];
+                    }
+                }
+                if (Object.keys(filteredExpenses[year]).length === 0) {
+                    delete filteredExpenses[year];
+                }
+            }
+            return filteredExpenses;
+        }
+
+        const organizeExpenses = (expenses) => {
+            const result = {};
+            expenses.forEach(expense => {
+                const dateParts = expense.date.split('-');
+                const year = dateParts[0];
+                const month = dateParts[1].padStart(2, '0');
+                const day = dateParts[2].padStart(2, '0');
+                if (!result[`${year}-${month}`]) {
+                    result[`${year}-${month}`] = {};
+                }
+                if (!result[`${year}-${month}`][day]) {
+                    result[`${year}-${month}`][day] = {};
+                }
+                if (!result[`${year}-${month}`][day][expense.category]) {
+                    result[`${year}-${month}`][day][expense.category] = [];
+                }
+                result[`${year}-${month}`][day][expense.category].push(expense.amount);
+            });
+            return result;
+        };
+
+        let newFormattedExpenses = organizeExpenses(expenses);
+
+        function getDaysInMonth(year, month) {
+            return new Date(year, month, 0).getDate();
+        }
+
+        function constructor(elem, text, className, attributes, parrentElem) {
+            const element = document.createElement(elem);
+            if (Array.isArray(text)) {
+                element.textContent = (text.join())
+            } else {
+                element.textContent = text;
+            }
+            element.classList = className;
+            if (attributes &&  Object.keys(attributes).length > 0) {
+                for (let key in attributes) {
+                    element.setAttribute(key, attributes[key]);
+                }
+            }
+            return parrentElem.appendChild(element);
+        };
+
+        function renderTable(formattedExpenses) {
+            const parrentElem = document.querySelector('.tbody'); 
+            parrentElem.textContent = '';
+            // for every month in formatted object
+            for (let month in formattedExpenses) {
+                let totalSummByMonth = 0;
+                // total amount of every month
+                for (let dayInMonth in formattedExpenses[month]) {
+                    for (let objCategoryByMonth in formattedExpenses[month][dayInMonth]) {
+                        formattedExpenses[month][dayInMonth][objCategoryByMonth].forEach(elem => {
+                            totalSummByMonth += elem
+                        })
+                    }
+                }
+                // create parrent row for every month
+                const [yearInObj, monthInObj] = month.split('-');
+                const daysInMonth = getDaysInMonth(yearInObj, monthInObj);
+                const monthRow = constructor('tr', null, 'month', null, parrentElem);
+                constructor('td', month, `cellMonth${month}`, null, monthRow);
+                constructor('td', '', null, null, monthRow);
+                constructor('td', `total: ${totalSummByMonth}`, null, null, monthRow); 
+                // to check if there is food, fuel
+                let food = false;
+                let fuel = false;
+                for (let day in formattedExpenses[month]) {
+                    if (formattedExpenses[month][day].food) {
+                        food = true;
+                    }
+                    if (formattedExpenses[month][day].fuel) {
+                        fuel = true;
+                    }
+                }
+                // create elements and calculate quantity food and fuel
+                if (food) {
+                    renderCategory('food', formattedExpenses, month, daysInMonth, parrentElem);
+                }
+                if (fuel) {
+                    renderCategory('fuel', formattedExpenses, month, daysInMonth, parrentElem);
+                }
+                // add rowspan for cell 'month' in table
+                rowQuantity = addRowspanForMonth(food, fuel, daysInMonth)
+                document.querySelector(`.cellMonth${month}`).setAttribute('rowspan', rowQuantity);
+            }
+        }
+
+        function addRowspanForMonth (food, fuel, daysInMonth) {
+            if (food && fuel) {
+                return daysInMonth * 2 + 3;
+            } else if (food || fuel) {
+                return daysInMonth + 2;
+            }
+        }
+
+        function createNewExpense() {
+            const newExpenseForm = document.querySelector('#form');
+            const [newExpenseDate, newExpenseCategory, newExpenseAmount] = newExpenseForm;
+            if (newExpenseDate.value && newExpenseCategory.value && newExpenseAmount.value) {
+                const newExpense = {
+                    date: newExpenseDate.value,
+                    category: newExpenseCategory.value,
+                    amount: +newExpenseAmount.value,
+                };
+                newExpenseDate.value = '';
+                newExpenseAmount.value = '';
+                expenses.push(newExpense);
+                newFormattedExpenses = organizeExpenses(expenses);
+                renderTable(newFormattedExpenses);
+            }
+        }
+
+        function renderCategory(category, formattedExpenses, month, daysInMonth, parrentElem) {
+            let categorySummByMonth = 0;
+            for (let dd in formattedExpenses[month]) {
+                if (formattedExpenses[month][dd][category]) {
+                    formattedExpenses[month][dd][category].forEach(elem => {
+                        categorySummByMonth += elem;
+                    });
+                }
+            }
+            const categoryInMonth = constructor('tr', null, 'category', null, parrentElem);
+            constructor('td', category, 'categoryInside', null, categoryInMonth);
+            constructor('td', `total: ${categorySummByMonth}`, null, null, categoryInMonth); 
+            for (let day = 1; day <= daysInMonth; day++) {
+                const str = day.toString();
+                const padStr = str.padStart(2, "0");
+                const categoryQuantityParrent = constructor('tr', null, 'category', null, parrentElem);
+                constructor('td', day, category, null, categoryQuantityParrent);
+                if (formattedExpenses[month][padStr]?.[category]) {
+                    constructor('td', formattedExpenses[month][padStr][category], `${category}Quantity`, null, categoryQuantityParrent);
+                } else {
+                    constructor('td', '-', `${category}Quantity`, null, categoryQuantityParrent);
+                } 
+            }
+        }
+
+        renderTable(newFormattedExpenses);
+    </script>
+</body>
+</html>
